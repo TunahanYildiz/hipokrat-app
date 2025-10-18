@@ -1,32 +1,54 @@
 // Bu satır, Flutter'ın Material Design widget'larını kullanabilmemiz için gerekli.
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:sozluk_app/features/dictionary/presentation/pages/home_page.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sozluk_app/features/dictionary/data/providers/settings_provider.dart';
 
-final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
-
+final RouteObserver<ModalRoute<void>> routeObserver =
+    RouteObserver<ModalRoute<void>>();
 
 // Uygulamanın ana giriş noktası. Flutter uygulamaları burada başlar.
 Future<void> main() async {
-  await dotenv.load(fileName: ".env");
   WidgetsFlutterBinding.ensureInitialized();
-  await MobileAds.instance.initialize();
-  runApp(const MyApp());
+
+  // Load environment variables
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    print('Warning: .env file not found. Using default values.');
+  }
+
+  // Initialize Google Mobile Ads only on supported platforms
+  if (!kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS)) {
+    try {
+      await MobileAds.instance.initialize();
+    } catch (e) {
+      print('Warning: Google Mobile Ads initialization failed: $e');
+    }
+  }
+
+  runApp(const ProviderScope(child: MyApp()));
 }
-
-
 
 // lib/main.dart içinde
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+
     // Modern bir renk şeması tanımlayalım
-    final ColorScheme colorScheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF007A7C), // Sakin, profesyonel bir turkuaz/teal rengi
+    final ColorScheme lightColorScheme = ColorScheme.fromSeed(
+      seedColor: const Color(
+        0xFF007A7C,
+      ), // Sakin, profesyonel bir turkuaz/teal rengi
       brightness: Brightness.light,
       primary: const Color(0xFF007A7C),
       onPrimary: Colors.white,
@@ -38,78 +60,147 @@ class MyApp extends StatelessWidget {
       onBackground: const Color(0xFF1F2937),
     );
 
+    final ColorScheme darkColorScheme = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF007A7C),
+      brightness: Brightness.dark,
+      primary: const Color(0xFF007A7C),
+      onPrimary: Colors.white,
+      secondary: const Color(0xFF52606D),
+      onSecondary: Colors.white,
+      surface: const Color(0xFF1F2937),
+      onSurface: Colors.white,
+      background: const Color(0xFF111827),
+      onBackground: Colors.white,
+    );
+
     return MaterialApp(
       title: 'Tıp Terimleri Sözlüğü',
       // YENİ VE DETAYLI TEMA
       theme: ThemeData(
-        colorScheme: colorScheme,
+        colorScheme: lightColorScheme,
         useMaterial3: true,
-        scaffoldBackgroundColor: colorScheme.background, // Scaffold arka planı
-
-        // AppBar (Başlık Çubuğu) Teması
+        scaffoldBackgroundColor: lightColorScheme.surface,
         appBarTheme: AppBarTheme(
-          backgroundColor: colorScheme.surface, // Arka plan rengi
-          foregroundColor: colorScheme.onSurface, // İkon ve başlık rengi (koyu gri)
-          elevation: 0.5, // Çok hafif bir gölge
+          backgroundColor: lightColorScheme.surface,
+          foregroundColor: lightColorScheme.onSurface,
+          elevation: 0.5,
           scrolledUnderElevation: 1.0,
           centerTitle: true,
-          titleTextStyle: const TextStyle(
+          titleTextStyle: TextStyle(
             fontSize: 18,
-            fontWeight: FontWeight.w600, // Biraz daha kalın font
-            color: Color(0xFF1F2937),
+            fontWeight: FontWeight.w600,
+            color: lightColorScheme.onSurface,
           ),
         ),
-
-        // Text Alanı (TextField) Teması
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+          fillColor: lightColorScheme.surface,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12.0),
-            borderSide: BorderSide(color: Colors.grey.shade300),
+            borderSide: BorderSide(
+              color: lightColorScheme.outline.withOpacity(0.3),
+            ),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12.0),
-            borderSide: BorderSide(color: Colors.grey.shade300),
+            borderSide: BorderSide(
+              color: lightColorScheme.outline.withOpacity(0.3),
+            ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12.0),
-            borderSide: BorderSide(color: colorScheme.primary, width: 2.0),
+            borderSide: BorderSide(color: lightColorScheme.primary, width: 2.0),
           ),
-          hintStyle: TextStyle(color: Colors.grey.shade500),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16.0,
+            vertical: 16.0,
+          ),
         ),
-
-        // Buton (ElevatedButton) Teması
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: colorScheme.primary,
-            foregroundColor: colorScheme.onPrimary,
+            backgroundColor: lightColorScheme.primary,
+            foregroundColor: lightColorScheme.onPrimary,
+            elevation: 2.0,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 12.0,
+            ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12.0),
             ),
-            padding: const EdgeInsets.symmetric(vertical: 14.0),
-            textStyle: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-            elevation: 2.0,
           ),
         ),
-
-        // Card (Kart) Teması (Favoriler ve Geçmiş sayfaları için)
         cardTheme: CardThemeData(
-          elevation: 0.5,
+          elevation: 2.0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12.0),
-            side: BorderSide(color: Colors.grey.shade200),
           ),
-          color: Colors.white,
-          margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 5.0),
+          color: lightColorScheme.surface,
         ),
-
-        // Diğer renkler ve ayarlar buradan devam ettirilebilir...
       ),
+      darkTheme: ThemeData(
+        colorScheme: darkColorScheme,
+        useMaterial3: true,
+        scaffoldBackgroundColor: darkColorScheme.surface,
+        appBarTheme: AppBarTheme(
+          backgroundColor: darkColorScheme.surface,
+          foregroundColor: darkColorScheme.onSurface,
+          elevation: 0.5,
+          scrolledUnderElevation: 1.0,
+          centerTitle: true,
+          titleTextStyle: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: darkColorScheme.onSurface,
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: darkColorScheme.surface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12.0),
+            borderSide: BorderSide(
+              color: darkColorScheme.outline.withOpacity(0.3),
+            ),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12.0),
+            borderSide: BorderSide(
+              color: darkColorScheme.outline.withOpacity(0.3),
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12.0),
+            borderSide: BorderSide(color: darkColorScheme.primary, width: 2.0),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16.0,
+            vertical: 16.0,
+          ),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: darkColorScheme.primary,
+            foregroundColor: darkColorScheme.onPrimary,
+            elevation: 2.0,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 12.0,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12.0),
+            ),
+          ),
+        ),
+        cardTheme: CardThemeData(
+          elevation: 2.0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12.0),
+          ),
+          color: darkColorScheme.surface,
+        ),
+      ),
+      themeMode: settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
       home: const HomePage(),
       debugShowCheckedModeBanner: false,
       navigatorObservers: [routeObserver],
